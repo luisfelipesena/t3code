@@ -58,7 +58,8 @@ function readInstanceCustomModels(
   instanceId: ProviderInstanceId,
   driverKind: ProviderDriverKind,
 ): ReadonlyArray<CustomModelDefinition> {
-  if (driverKind === "antigravity") return [];
+  // Account catalogs only. Saved Cursor customs stay visible in Settings for removal.
+  if (driverKind === "antigravity" || driverKind === "cursor") return [];
   const instance = settings.providerInstances?.[instanceId];
   const config = instance?.config;
   if (config !== null && typeof config === "object") {

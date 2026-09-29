@@ -159,23 +159,25 @@ export function applyCursorAcpModelSelection<E>(input: {
 }): Effect.Effect<void, E> {
   return Effect.gen(function* () {
     const baseModelId = resolveCursorAcpBaseModelId(input.model);
+    const requestedModelId = input.model?.trim() || baseModelId;
     const configOptions = yield* input.runtime.getConfigOptions;
     const modelOption = findCursorModelSelectOption(configOptions);
     let modelId = baseModelId;
     if (modelOption?.type === "select") {
       const allowedValues = collectSessionConfigOptionValues(modelOption);
-      if (allowedValues.length > 0) {
-        const matched = resolveCursorAcpCatalogModelId(allowedValues, input.model);
-        if (!matched) {
-          return yield* Effect.fail(
-            input.mapError({
-              cause: cursorAcpUnsupportedModelError(baseModelId),
-              step: "set-model",
-            }),
-          );
-        }
-        modelId = matched;
+      const matched =
+        allowedValues.length > 0
+          ? resolveCursorAcpCatalogModelId(allowedValues, input.model)
+          : undefined;
+      if (!matched) {
+        return yield* Effect.fail(
+          input.mapError({
+            cause: cursorAcpUnsupportedModelError(requestedModelId),
+            step: "set-model",
+          }),
+        );
       }
+      modelId = matched;
     }
 
     yield* input.runtime.setModel(modelId).pipe(

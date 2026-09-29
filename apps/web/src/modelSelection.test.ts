@@ -628,6 +628,38 @@ describe("instance-scoped model selection", () => {
     }
   });
 
+  it("offers only account catalog models for Cursor despite custom model settings", () => {
+    const driver = ProviderDriverKind.make("cursor");
+    const customId = ProviderInstanceId.make("cursor_work");
+    const nativeModel = "composer-2.5";
+    const settings: UnifiedSettings = {
+      ...DEFAULT_UNIFIED_SETTINGS,
+      providers: {
+        ...DEFAULT_UNIFIED_SETTINGS.providers,
+        cursor: {
+          ...DEFAULT_UNIFIED_SETTINGS.providers.cursor,
+          customModels: ["deepseek/deepseek-v4.1-flash"],
+        },
+      },
+      providerInstances: {
+        [customId]: {
+          driver,
+          config: { customModels: ["openrouter/deepseek/deepseek-v4.1-flash"] },
+        },
+      },
+    };
+    const entries = deriveProviderInstanceEntries([
+      provider({ provider: driver, instanceId: "cursor", models: [nativeModel] }),
+      provider({ provider: driver, instanceId: customId, models: [nativeModel] }),
+    ]);
+
+    for (const entry of entries) {
+      expect(getAppModelOptionsForInstance(settings, entry).map((model) => model.slug)).toEqual([
+        nativeModel,
+      ]);
+    }
+  });
+
   it("offers only account catalog models for Antigravity despite custom model settings", () => {
     const driver = ProviderDriverKind.make("antigravity");
     const customId = ProviderInstanceId.make("antigravity_work");

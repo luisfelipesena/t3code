@@ -328,7 +328,41 @@ describe("applyCursorAcpModelSelection", () => {
     );
 
     expect(error).toContain("Cursor CLI only runs models from your Cursor account catalog");
-    expect(error).toContain("gpt-5.6-sol");
+    expect(error).toContain("gpt-5.6-sol[context=1m]");
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects a select model option with an empty catalog before setModel", async () => {
+    const calls: string[] = [];
+    const runtime = {
+      getConfigOptions: Effect.succeed([
+        {
+          id: "model",
+          name: "Model",
+          category: "model",
+          type: "select",
+          currentValue: "",
+          options: [],
+        },
+      ] satisfies ReadonlyArray<EffectAcpSchema.SessionConfigOption>),
+      setModel: (value: string) =>
+        Effect.sync(() => {
+          calls.push(value);
+        }),
+      setConfigOption: () => Effect.void,
+    };
+
+    const error = await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "composer-2.5",
+        selections: [],
+        mapError: ({ cause }) => cause.message,
+      }).pipe(Effect.flip),
+    );
+
+    expect(error).toContain("Cursor CLI only runs models from your Cursor account catalog");
+    expect(error).toContain("composer-2.5");
     expect(calls).toEqual([]);
   });
 
