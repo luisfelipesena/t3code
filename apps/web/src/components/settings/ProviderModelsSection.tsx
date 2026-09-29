@@ -379,25 +379,27 @@ export function ProviderModelsSection({
           </Tooltip>
         </>
       ) : null}
+      {model.isCustom && providerSupportsCustomModels(driverKind) ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-micro"
+                variant="ghost-muted"
+                aria-label={`Edit ${model.slug}`}
+                onClick={() =>
+                  setEditingSlug((current) => (current === model.slug ? null : model.slug))
+                }
+              />
+            }
+          >
+            <PencilIcon className="size-3" />
+          </TooltipTrigger>
+          <TooltipPopup side="top">Edit name and options</TooltipPopup>
+        </Tooltip>
+      ) : null}
       {model.isCustom ? (
         <>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-micro"
-                  variant="ghost-muted"
-                  aria-label={`Edit ${model.slug}`}
-                  onClick={() =>
-                    setEditingSlug((current) => (current === model.slug ? null : model.slug))
-                  }
-                />
-              }
-            >
-              <PencilIcon className="size-3" />
-            </TooltipTrigger>
-            <TooltipPopup side="top">Edit name and options</TooltipPopup>
-          </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -418,12 +420,17 @@ export function ProviderModelsSection({
     </span>
   );
 
+  const catalogOnlyCustom = (model: DisplayModel) =>
+    model.isCustom && !providerSupportsCustomModels(driverKind);
+
   const pickerTooltip = (model: DisplayModel, isHidden: boolean) =>
-    model.isCustom
-      ? "Custom models are always shown in the picker"
-      : isHidden
-        ? "Hidden from picker"
-        : "Shown in picker";
+    catalogOnlyCustom(model)
+      ? "Not offered in the picker. This provider only runs its account catalog."
+      : model.isCustom
+        ? "Custom models are always shown in the picker"
+        : isHidden
+          ? "Hidden from picker"
+          : "Shown in picker";
 
   // The trigger is a wrapper span: a disabled switch gets no pointer events,
   // so it could not open the tooltip itself.
@@ -432,10 +439,14 @@ export function ProviderModelsSection({
       <TooltipTrigger render={<span className="flex shrink-0 items-center" />}>
         <Switch
           size="sm"
-          checked={!isHidden}
+          checked={catalogOnlyCustom(model) ? false : !isHidden}
           disabled={model.isCustom}
           onCheckedChange={(checked) => setHidden(model.slug, !checked)}
-          aria-label={`Show ${model.name} in the model picker`}
+          aria-label={
+            catalogOnlyCustom(model)
+              ? `${model.name} is not offered in the model picker`
+              : `Show ${model.name} in the model picker`
+          }
         />
       </TooltipTrigger>
       <TooltipPopup side="top">{pickerTooltip(model, isHidden)}</TooltipPopup>

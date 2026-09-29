@@ -165,6 +165,9 @@ export function buildModelOptions(
 
     const providerLabel = providerDisplayLabel(provider);
     for (const model of provider.models) {
+      if (provider.driver === "cursor" && model.isCustom) {
+        continue;
+      }
       const key = `${provider.instanceId}:${model.slug}`;
       options.set(key, {
         key,
@@ -213,6 +216,9 @@ export function buildModelOptions(
         displayName: provider?.displayName ?? instanceConfig?.displayName,
         instanceId: fallbackModelSelection.instanceId,
       });
+      const unavailable =
+        (provider?.driver === "cursor" && model?.isCustom === true) ||
+        isModelSelectionUnavailable(config, fallbackModelSelection);
       options.set(key, {
         key,
         label: model?.name ?? fallbackModelSelection.model,
@@ -222,9 +228,7 @@ export function buildModelOptions(
         providerDriver,
         isDefault: false,
         isLegacy: model?.isLegacy === true,
-        ...(isModelSelectionUnavailable(config, fallbackModelSelection)
-          ? { isUnavailable: true }
-          : {}),
+        ...(unavailable ? { isUnavailable: true } : {}),
         capabilities: model?.capabilities ?? null,
         selection: fallbackModelSelection,
       });

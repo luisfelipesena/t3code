@@ -116,7 +116,7 @@ function findCursorModelSelectOption(
 }
 
 /** Fail before ACP when the id is outside cursor-agent's live account catalog. */
-export function cursorAcpUnsupportedModelError(modelId: string): EffectAcpErrors.AcpRequestError {
+function cursorAcpUnsupportedModelError(modelId: string): EffectAcpErrors.AcpRequestError {
   return new EffectAcpErrors.AcpRequestError({
     code: -32602,
     errorMessage: `Cursor CLI only runs models from your Cursor account catalog, so "${modelId}" cannot be used. OpenRouter and other BYOK model ids work in the Cursor IDE app, not through cursor-agent. Use an OpenCode provider instance with an OpenRouter model (for example openrouter/deepseek/deepseek-v4.1-flash), or pick a model from Cursor's catalog.`,
@@ -128,13 +128,15 @@ export function cursorAcpUnsupportedModelError(modelId: string): EffectAcpErrors
 /**
  * Map a requested model id onto a live Cursor catalog select value.
  * Catalog entries can be bare (`composer-2.5`) or parameterized
- * (`gpt-5.6-sol[context=272k,...]`). Exact and bare matches win; base-slug
- * fallback to a parameterized catalog value is only for bare requests so we
- * never remap an explicit suffix (e.g. context=1m) onto a different one.
+ * (`gpt-5.6-sol[context=272k,...]`). Exact and bare matches win. A bare request
+ * falls back to one parameterized catalog value, or to the current value when
+ * several share that base. An explicit suffix that is not in the catalog is
+ * rejected.
  */
-export function resolveCursorAcpCatalogModelId(
+function resolveCursorAcpCatalogModelId(
   allowedValues: ReadonlyArray<string>,
   model: string | null | undefined,
+  currentValue?: string,
 ): string | undefined {
   const trimmed = model?.trim();
   if (trimmed && allowedValues.includes(trimmed)) {
@@ -148,7 +150,13 @@ export function resolveCursorAcpCatalogModelId(
   if (trimmed && trimmed !== baseModelId) {
     return undefined;
   }
-  return allowedValues.find((value) => resolveCursorAcpBaseModelId(value) === baseModelId);
+  const matches = allowedValues.filter(
+    (value) => resolveCursorAcpBaseModelId(value) === baseModelId,
+  );
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  return currentValue !== undefined && matches.includes(currentValue) ? currentValue : undefined;
 }
 
 export function applyCursorAcpModelSelection<E>(input: {
@@ -164,11 +172,11 @@ export function applyCursorAcpModelSelection<E>(input: {
     const modelOption = findCursorModelSelectOption(configOptions);
     let modelId = baseModelId;
     if (modelOption?.type === "select") {
-      const allowedValues = collectSessionConfigOptionValues(modelOption);
-      const matched =
-        allowedValues.length > 0
-          ? resolveCursorAcpCatalogModelId(allowedValues, input.model)
-          : undefined;
+      const matched = resolveCursorAcpCatalogModelId(
+        collectSessionConfigOptionValues(modelOption),
+        input.model,
+        modelOption.currentValue,
+      );
       if (!matched) {
         return yield* Effect.fail(
           input.mapError({

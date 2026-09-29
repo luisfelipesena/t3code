@@ -339,6 +339,41 @@ describe("mobile model options", () => {
     });
   });
 
+  it("leaves Cursor custom models out of the picker", () => {
+    const config = {
+      providers: [
+        {
+          instanceId: "cursor",
+          driver: "cursor",
+          displayName: "Cursor",
+          enabled: true,
+          installed: true,
+          auth: { status: "authenticated" },
+          models: [
+            { slug: "composer-2.5", name: "Composer", isCustom: false, capabilities: null },
+            {
+              slug: "deepseek/deepseek-v4.1-flash",
+              name: "DeepSeek",
+              isCustom: true,
+              capabilities: null,
+            },
+          ],
+        },
+      ],
+    } as unknown as ServerConfig;
+    const selection = {
+      instanceId: ProviderInstanceId.make("cursor"),
+      model: "deepseek/deepseek-v4.1-flash",
+    };
+
+    expect(buildModelOptions(config, null).map((option) => option.label)).toEqual(["Composer"]);
+    const withSelection = buildModelOptions(config, selection);
+    expect(withSelection.map((option) => [option.label, option.isUnavailable])).toEqual([
+      ["Composer", undefined],
+      ["DeepSeek", true],
+    ]);
+  });
+
   it("keeps legacy models out of implicit defaults", () => {
     const config = {
       providers: [

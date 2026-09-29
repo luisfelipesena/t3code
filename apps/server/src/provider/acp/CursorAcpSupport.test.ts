@@ -297,6 +297,79 @@ describe("applyCursorAcpModelSelection", () => {
     expect(calls).toEqual([catalogValue]);
   });
 
+  it("keeps the current parameterized value when several share a base slug", async () => {
+    const currentValue = "gpt-5.6-sol[context=1m,reasoning=medium,fast=false]";
+    const calls: string[] = [];
+    const runtime = {
+      getConfigOptions: Effect.succeed([
+        {
+          id: "model",
+          name: "Model",
+          category: "model",
+          type: "select",
+          currentValue,
+          options: [
+            { value: "gpt-5.6-sol[context=272k,reasoning=medium,fast=false]", name: "272K" },
+            { value: currentValue, name: "1M" },
+          ],
+        },
+      ] satisfies ReadonlyArray<EffectAcpSchema.SessionConfigOption>),
+      setModel: (value: string) =>
+        Effect.sync(() => {
+          calls.push(value);
+        }),
+      setConfigOption: () => Effect.void,
+    };
+
+    await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "gpt-5.6-sol",
+        selections: [],
+        mapError: ({ cause }) => cause.message,
+      }),
+    );
+
+    expect(calls).toEqual([currentValue]);
+  });
+
+  it("rejects a bare id when several parameterized values share its base and none is current", async () => {
+    const calls: string[] = [];
+    const runtime = {
+      getConfigOptions: Effect.succeed([
+        {
+          id: "model",
+          name: "Model",
+          category: "model",
+          type: "select",
+          currentValue: "composer-2.5",
+          options: [
+            { value: "composer-2.5", name: "Composer" },
+            { value: "gpt-5.6-sol[context=272k]", name: "272K" },
+            { value: "gpt-5.6-sol[context=1m]", name: "1M" },
+          ],
+        },
+      ] satisfies ReadonlyArray<EffectAcpSchema.SessionConfigOption>),
+      setModel: (value: string) =>
+        Effect.sync(() => {
+          calls.push(value);
+        }),
+      setConfigOption: () => Effect.void,
+    };
+
+    const error = await Effect.runPromise(
+      applyCursorAcpModelSelection({
+        runtime,
+        model: "gpt-5.6-sol",
+        selections: [],
+        mapError: ({ cause }) => cause.message,
+      }).pipe(Effect.flip),
+    );
+
+    expect(error).toContain("gpt-5.6-sol");
+    expect(calls).toEqual([]);
+  });
+
   it("rejects a parameterized request that does not match the catalog suffix", async () => {
     const catalogValue = "gpt-5.6-sol[context=272k,reasoning=medium,fast=false]";
     const calls: string[] = [];
